@@ -91,3 +91,66 @@ tasksRouter.post('/', mockAuth, async (req, res, next) => {
     next(err);
   }
 });
+
+/**
+ * PUT /tasks/:id
+ * Updates an existing task
+ */
+tasksRouter.put('/:id', mockAuth, async (req, res, next) => {
+  try {
+    const db = await getDb();
+
+    // Check if task exists
+    const task = await db.get('SELECT * FROM tasks WHERE id = ?', req.params.id);
+    if (!task) {
+      await db.close();
+      const err = new Error(`Task with ID ${req.params.id} not found`);
+      err.status = 404;
+      return next(err);
+    }
+
+    // Update with provided fields, keep existing values for missing fields
+    const { title, description, status } = req.body;
+    const updatedTitle = title ?? task.title;
+    const updatedDescription = description ?? task.description;
+    const updatedStatus = status ?? task.status;
+
+    await db.run(
+      'UPDATE tasks SET title = ?, description = ?, status = ? WHERE id = ?',
+      [updatedTitle, updatedDescription, updatedStatus, req.params.id]
+    );
+
+    const updatedTask = await db.get('SELECT * FROM tasks WHERE id = ?', req.params.id);
+    await db.close();
+
+    res.json(updatedTask);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * DELETE /tasks/:id
+ * Deletes a task
+ */
+tasksRouter.delete('/:id', mockAuth, async (req, res, next) => {
+  try {
+    const db = await getDb();
+
+    // Check if task exists
+    const task = await db.get('SELECT * FROM tasks WHERE id = ?', req.params.id);
+    if (!task) {
+      await db.close();
+      const err = new Error(`Task with ID ${req.params.id} not found`);
+      err.status = 404;
+      return next(err);
+    }
+
+    await db.run('DELETE FROM tasks WHERE id = ?', req.params.id);
+    await db.close();
+
+    res.json({ message: `Task ${req.params.id} deleted` });
+  } catch (err) {
+    next(err);
+  }
+});
