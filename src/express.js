@@ -1,5 +1,6 @@
 import express from 'express';
 import morgan from 'morgan';
+import { tasksRouter } from './routes/tasks.js';
 
 // Create Express App
 const app = express();
@@ -15,7 +16,7 @@ app.use(morgan('dev'));
 app.use(express.json());
 
 // API routes
-// app.use('/api/...', router);
+app.use('/tasks', tasksRouter);
 
 // Root status check route
 app.get('/', (_req, res) => {
