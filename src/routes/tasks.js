@@ -93,10 +93,10 @@ tasksRouter.post('/', mockAuth, async (req, res, next) => {
 });
 
 /**
- * PUT /tasks/:id
- * Updates an existing task
+ * PATCH /tasks/:id
+ * Partially updates an existing task
  */
-tasksRouter.put('/:id', mockAuth, async (req, res, next) => {
+tasksRouter.patch('/:id', mockAuth, async (req, res, next) => {
   try {
     const db = await getDb();
 
