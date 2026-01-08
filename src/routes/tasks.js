@@ -5,6 +5,8 @@ import { defaultUserId } from '../../app.js';
 
 export const tasksRouter = Router();
 
+const VALID_STATUSES = ['pending', 'in-progress', 'completed'];
+
 /**
  * Mock auth middleware - attaches default user to req
  * TODO: replace with real JWT middleware
@@ -74,6 +76,13 @@ tasksRouter.post('/', mockAuth, async (req, res, next) => {
       err.status = 400;
       return next(err);
     }
+    if (!VALID_STATUSES.includes(status)) {
+      const err = new Error(
+        `Invalid status. Must be one of: ${VALID_STATUSES.join(', ')}`
+      );
+      err.status = 400;
+      return next(err);
+    }
 
     const db = await getDb();
     const id = randomUUID();
@@ -111,6 +120,17 @@ tasksRouter.patch('/:id', mockAuth, async (req, res, next) => {
 
     // Update with provided fields, keep existing values for missing fields
     const { title, description, status } = req.body;
+
+    // Validate status if provided
+    if (status && !VALID_STATUSES.includes(status)) {
+      await db.close();
+      const err = new Error(
+        `Invalid status. Must be one of: ${VALID_STATUSES.join(', ')}`
+      );
+      err.status = 400;
+      return next(err);
+    }
+
     const updatedTitle = title ?? task.title;
     const updatedDescription = description ?? task.description;
     const updatedStatus = status ?? task.status;
