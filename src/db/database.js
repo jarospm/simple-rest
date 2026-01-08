@@ -3,6 +3,7 @@ import { open } from 'sqlite';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import bcrypt from 'bcrypt';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATABASE_PATH = join(__dirname, '../../database.db');
@@ -19,6 +20,11 @@ export async function getDb() {
   return db;
 }
 
+// Bcrypt cost factor: each increment doubles computation time.
+// 10 rounds ≈ 100ms per hash — balances security vs. login speed.
+// Higher = slower brute-force attacks, but also slower logins.
+const SALT_ROUNDS = 10;
+
 /**
  * Creates the users table if it doesn't exist
  */
@@ -26,7 +32,8 @@ async function createUsersTable(db) {
   await db.exec(`
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
-      username TEXT UNIQUE NOT NULL
+      username TEXT UNIQUE NOT NULL,
+      password TEXT NOT NULL
     )
   `);
 }
@@ -52,7 +59,10 @@ async function createTasksTable(db) {
  * Returns the default user's ID
  */
 async function seedDefaultUser(db) {
+  // Test credentials for development only.
+  // Real users register via /auth/register with their own passwords.
   const DEFAULT_USERNAME = 'default';
+  const DEFAULT_PASSWORD = 'password123';
 
   let user = await db.get(
     'SELECT id FROM users WHERE username = ?',
@@ -61,10 +71,14 @@ async function seedDefaultUser(db) {
 
   if (!user) {
     const id = randomUUID();
-    await db.run('INSERT INTO users (id, username) VALUES (?, ?)', [
-      id,
-      DEFAULT_USERNAME,
-    ]);
+    // bcrypt.hash() generates a random salt and embeds it in the output.
+    // Result looks like: "$2b$10$salt22charshashedpassword..."
+    // The salt prevents rainbow table attacks; bcrypt.compare() extracts it automatically.
+    const hashedPassword = await bcrypt.hash(DEFAULT_PASSWORD, SALT_ROUNDS);
+    await db.run(
+      'INSERT INTO users (id, username, password) VALUES (?, ?, ?)',
+      [id, DEFAULT_USERNAME, hashedPassword]
+    );
     user = { id };
   }
 
