@@ -1,3 +1,5 @@
+import 'dotenv/config';
+
 import { app } from './src/express.js';
 import { initializeDatabase } from './src/db/database.js';
 

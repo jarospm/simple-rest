@@ -9,10 +9,8 @@ export const authRouter = Router();
 // JWT_SECRET is a cryptographic key used to sign tokens.
 // - On login: jwt.sign() uses it to create a tamper-proof signature
 // - On protected routes: jwt.verify() uses it to validate the signature
-const JWT_SECRET = 'dev-secret';
-
-// Token lifetime. After expiration, client must re-authenticate.
-const JWT_EXPIRES_IN = '1h';
+const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN;
 
 // Bcrypt cost factor
 const SALT_ROUNDS = 10;
