@@ -5,9 +5,9 @@ import { initializeDatabase } from './src/db/database.js';
 
 const port = process.env.PORT || 3000;
 
-// Initialize database and get default user ID
-export const defaultUserId = await initializeDatabase();
-console.log(`Database initialized. Default user ID: ${defaultUserId}`);
+// Initialize database (creates tables if they don't exist)
+await initializeDatabase();
+console.log('Database initialized');
 
 const server = app.listen(port, () => {
   console.log(`Server started on http://localhost:${port}`);

@@ -40,7 +40,10 @@ tasksRouter.get('/:id', async (req, res, next) => {
     const db = await getDb();
 
     // Step 1: Check if task exists at all
-    const task = await db.get('SELECT * FROM tasks WHERE id = ?', req.params.id);
+    const task = await db.get(
+      'SELECT * FROM tasks WHERE id = ?',
+      req.params.id
+    );
     await db.close();
 
     if (!task) {
@@ -117,7 +120,10 @@ tasksRouter.patch('/:id', async (req, res, next) => {
     const db = await getDb();
 
     // Step 1: Check if task exists at all
-    const task = await db.get('SELECT * FROM tasks WHERE id = ?', req.params.id);
+    const task = await db.get(
+      'SELECT * FROM tasks WHERE id = ?',
+      req.params.id
+    );
     if (!task) {
       await db.close();
       // 404: Resource doesn't exist
@@ -178,7 +184,10 @@ tasksRouter.delete('/:id', async (req, res, next) => {
     const db = await getDb();
 
     // Step 1: Check if task exists at all
-    const task = await db.get('SELECT * FROM tasks WHERE id = ?', req.params.id);
+    const task = await db.get(
+      'SELECT * FROM tasks WHERE id = ?',
+      req.params.id
+    );
     if (!task) {
       await db.close();
       // 404: Resource doesn't exist
