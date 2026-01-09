@@ -38,17 +38,23 @@ tasksRouter.get('/', async (req, res, next) => {
 tasksRouter.get('/:id', async (req, res, next) => {
   try {
     const db = await getDb();
-    // Query includes user_id check:
-    // returns null if task exists but belongs to another user.
-    const task = await db.get(
-      'SELECT * FROM tasks WHERE id = ? AND user_id = ?',
-      [req.params.id, req.user.userId]
-    );
+
+    // Step 1: Check if task exists at all
+    const task = await db.get('SELECT * FROM tasks WHERE id = ?', req.params.id);
     await db.close();
 
     if (!task) {
+      // 404: Resource doesn't exist
       const err = new Error(`Task with ID ${req.params.id} not found`);
-      err.status = 404; // avoid revealing that the task exists
+      err.status = 404;
+      return next(err);
+    }
+
+    // Step 2: Check if user owns the task
+    if (task.user_id !== req.user.userId) {
+      // 403: Resource exists, but you're not allowed to access it
+      const err = new Error('You do not have permission to access this task');
+      err.status = 403;
       return next(err);
     }
 
@@ -110,15 +116,22 @@ tasksRouter.patch('/:id', async (req, res, next) => {
   try {
     const db = await getDb();
 
-    // Check if task exists AND belongs to user
-    const task = await db.get(
-      'SELECT * FROM tasks WHERE id = ? AND user_id = ?',
-      [req.params.id, req.user.userId]
-    );
+    // Step 1: Check if task exists at all
+    const task = await db.get('SELECT * FROM tasks WHERE id = ?', req.params.id);
     if (!task) {
       await db.close();
+      // 404: Resource doesn't exist
       const err = new Error(`Task with ID ${req.params.id} not found`);
       err.status = 404;
+      return next(err);
+    }
+
+    // Step 2: Check if user owns the task
+    if (task.user_id !== req.user.userId) {
+      await db.close();
+      // 403: Resource exists, but you're not allowed to modify it
+      const err = new Error('You do not have permission to modify this task');
+      err.status = 403;
       return next(err);
     }
 
@@ -164,15 +177,22 @@ tasksRouter.delete('/:id', async (req, res, next) => {
   try {
     const db = await getDb();
 
-    // Check if task exists AND belongs to user
-    const task = await db.get(
-      'SELECT * FROM tasks WHERE id = ? AND user_id = ?',
-      [req.params.id, req.user.userId]
-    );
+    // Step 1: Check if task exists at all
+    const task = await db.get('SELECT * FROM tasks WHERE id = ?', req.params.id);
     if (!task) {
       await db.close();
+      // 404: Resource doesn't exist
       const err = new Error(`Task with ID ${req.params.id} not found`);
       err.status = 404;
+      return next(err);
+    }
+
+    // Step 2: Check if user owns the task
+    if (task.user_id !== req.user.userId) {
+      await db.close();
+      // 403: Resource exists, but you're not allowed to delete it
+      const err = new Error('You do not have permission to delete this task');
+      err.status = 403;
       return next(err);
     }
 
