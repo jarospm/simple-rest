@@ -1,29 +1,28 @@
 import { Router } from 'express';
 import { randomUUID } from 'node:crypto';
 import { getDb } from '../db/database.js';
-import { defaultUserId } from '../../app.js';
+import { authenticateToken } from '../middleware/auth.js';
 
 export const tasksRouter = Router();
 
 const VALID_STATUSES = ['pending', 'in-progress', 'completed'];
 
-/**
- * Mock auth middleware - attaches default user to req
- * TODO: replace with real JWT middleware
- */
-const mockAuth = (req, _res, next) => {
-  req.user = { id: defaultUserId };
-  next();
-};
+// Apply JWT authentication to all task routes.
+// req.user will contain { userId, username } from the token payload.
+tasksRouter.use(authenticateToken);
 
 /**
  * GET /tasks
- * Retrieves all tasks
+ * Retrieves all tasks for the authenticated user
  */
-tasksRouter.get('/', async (_req, res, next) => {
+tasksRouter.get('/', async (req, res, next) => {
   try {
     const db = await getDb();
-    const tasks = await db.all('SELECT * FROM tasks');
+    // Only return tasks belonging to the authenticated user
+    const tasks = await db.all(
+      'SELECT * FROM tasks WHERE user_id = ?',
+      req.user.userId
+    );
     await db.close();
 
     res.json(tasks);
@@ -34,20 +33,22 @@ tasksRouter.get('/', async (_req, res, next) => {
 
 /**
  * GET /tasks/:id
- * Retrieves a specific task by ID
+ * Retrieves a specific task by ID (only if owned by user)
  */
 tasksRouter.get('/:id', async (req, res, next) => {
   try {
     const db = await getDb();
+    // Query includes user_id check:
+    // returns null if task exists but belongs to another user.
     const task = await db.get(
-      'SELECT * FROM tasks WHERE id = ?',
-      req.params.id
+      'SELECT * FROM tasks WHERE id = ? AND user_id = ?',
+      [req.params.id, req.user.userId]
     );
     await db.close();
 
     if (!task) {
       const err = new Error(`Task with ID ${req.params.id} not found`);
-      err.status = 404;
+      err.status = 404; // avoid revealing that the task exists
       return next(err);
     }
 
@@ -59,9 +60,9 @@ tasksRouter.get('/:id', async (req, res, next) => {
 
 /**
  * POST /tasks
- * Creates a new task
+ * Creates a new task for the authenticated user
  */
-tasksRouter.post('/', mockAuth, async (req, res, next) => {
+tasksRouter.post('/', async (req, res, next) => {
   try {
     const { title, description, status } = req.body;
 
@@ -89,7 +90,7 @@ tasksRouter.post('/', mockAuth, async (req, res, next) => {
 
     await db.run(
       'INSERT INTO tasks (id, title, description, status, user_id) VALUES (?, ?, ?, ?, ?)',
-      [id, title, description || null, status, req.user.id]
+      [id, title, description || null, status, req.user.userId]
     );
 
     const newTask = await db.get('SELECT * FROM tasks WHERE id = ?', id);
@@ -103,14 +104,17 @@ tasksRouter.post('/', mockAuth, async (req, res, next) => {
 
 /**
  * PATCH /tasks/:id
- * Partially updates an existing task
+ * Partially updates an existing task (only if owned by user)
  */
-tasksRouter.patch('/:id', mockAuth, async (req, res, next) => {
+tasksRouter.patch('/:id', async (req, res, next) => {
   try {
     const db = await getDb();
 
-    // Check if task exists
-    const task = await db.get('SELECT * FROM tasks WHERE id = ?', req.params.id);
+    // Check if task exists AND belongs to user
+    const task = await db.get(
+      'SELECT * FROM tasks WHERE id = ? AND user_id = ?',
+      [req.params.id, req.user.userId]
+    );
     if (!task) {
       await db.close();
       const err = new Error(`Task with ID ${req.params.id} not found`);
@@ -140,7 +144,10 @@ tasksRouter.patch('/:id', mockAuth, async (req, res, next) => {
       [updatedTitle, updatedDescription, updatedStatus, req.params.id]
     );
 
-    const updatedTask = await db.get('SELECT * FROM tasks WHERE id = ?', req.params.id);
+    const updatedTask = await db.get(
+      'SELECT * FROM tasks WHERE id = ?',
+      req.params.id
+    );
     await db.close();
 
     res.json(updatedTask);
@@ -151,14 +158,17 @@ tasksRouter.patch('/:id', mockAuth, async (req, res, next) => {
 
 /**
  * DELETE /tasks/:id
- * Deletes a task
+ * Deletes a task (only if owned by user)
  */
-tasksRouter.delete('/:id', mockAuth, async (req, res, next) => {
+tasksRouter.delete('/:id', async (req, res, next) => {
   try {
     const db = await getDb();
 
-    // Check if task exists
-    const task = await db.get('SELECT * FROM tasks WHERE id = ?', req.params.id);
+    // Check if task exists AND belongs to user
+    const task = await db.get(
+      'SELECT * FROM tasks WHERE id = ? AND user_id = ?',
+      [req.params.id, req.user.userId]
+    );
     if (!task) {
       await db.close();
       const err = new Error(`Task with ID ${req.params.id} not found`);
