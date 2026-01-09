@@ -96,7 +96,7 @@ authRouter.post('/login', async (req, res, next) => {
     await db.close();
 
     if (!user) {
-      const err = new Error('Invalid credentials');
+      const err = new Error('User not found');
       err.status = 401;
       return next(err);
     }
@@ -104,7 +104,7 @@ authRouter.post('/login', async (req, res, next) => {
     // Verify password
     const passwordMatch = await bcrypt.compare(password, user.password);
     if (!passwordMatch) {
-      const err = new Error('Invalid credentials');
+      const err = new Error('Wrong password');
       err.status = 401;
       return next(err);
     }
